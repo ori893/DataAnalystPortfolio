@@ -1,0 +1,426 @@
+--ori nahum
+--16/04/2023
+--project 1
+
+
+--Part 1 --Database & Tables & Constraints Creation.
+
+
+use master
+create database project1 --creating the database
+go
+
+use project1 --useing the database
+
+--SalesTerritory table creation 
+CREATE TABLE SalesTerritory (
+  territoryID INT CONSTRAINT SalesTerritory_territoryID_pk PRIMARY KEY,--setting territoryID as PK
+  name VARCHAR(50) not null,
+  CountryRegionCode NVARCHAR(3) not null,
+  [group] NVARCHAR(50) not null,
+  SalesYTD money not null,
+  SalesLastYear money not null,
+  CostYTD money not null,
+  CostLastYear money not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null
+)
+--customer table creation 
+CREATE TABLE customer (
+  customerID INT CONSTRAINT customer_customerID_pk PRIMARY KEY,--setting customerID as PK
+ personID INT,
+ storeID INT,
+ territoryID INT,
+  AccountNumber varchar(30),
+ rowguid uniqueidentifier not null,
+  ModifiedDate datetime not null
+CONSTRAINT customer_territoryID_fk FOREIGN KEY (territoryID) REFERENCES SalesTerritory(territoryID)
+)
+--SalesPerson table creation
+CREATE TABLE SalesPerson (
+  BusinessEntityID INT CONSTRAINT SalesPerson_BusinessEntityID_pk PRIMARY KEY,--setting BusinessEntityID as PK
+  TerritoryID INT,
+  SalesQuota MONEY,
+  Bonus MONEY not null,
+  CommissionPct smallmoney not null,
+  SalesYTD MONEY not null,
+  SalesLastYear MONEY not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null,
+ CONSTRAINT SalesPerson_territoryID_fk FOREIGN KEY (territoryID) REFERENCES SalesTerritory(territoryID)
+)
+--CreditCard table creation
+CREATE TABLE CreditCard (
+  CreditCardID INT CONSTRAINT CreditCard_CreditCardID_pk PRIMARY KEY,--setting CreditCardID as PK
+  CardType VARCHAR(50) not null,
+  CardNumber VARCHAR(25) not null,
+  ExpMonth TINYINT not null,
+  ExpYear SMALLINT not null,
+  ModifiedDate DATE not null
+)
+--Address table creation
+CREATE TABLE Address (
+  AddressID INT CONSTRAINT Address_AddressID_pk PRIMARY KEY,--setting AddressID as PK
+  AddressLine1 NVARCHAR(60) not null,
+  AddressLine2 NVARCHAR(60),
+  City NVARCHAR(30) not null,
+  StateProvinceID INT not null,
+  PostalCode NVARCHAR(15) not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null
+)
+--ShipMethod table creation
+CREATE TABLE ShipMethod (
+  ShipMethodID INT CONSTRAINT ShipMethod_ShipMethodID_pk PRIMARY KEY,--setting ShipMethodID as PK
+  Name NVARCHAR(50) not null,
+  ShipBase money not null,
+  ShipRate money not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null
+)
+--CurrencyRate table creation
+CREATE TABLE CurrencyRate (
+  CurrencyRateID INT PRIMARY KEY,--setting CurrencyRateID as PK
+  CurrencyRateDate DATE,
+  FromCurrencyCode NCHAR(3),
+  ToCurrencyCode NCHAR(3),
+  AverageRate MONEY,
+  EndOfDayRate MONEY,
+  ModifiedDate DATE
+)
+--SpecialOfferProduct table creation
+CREATE TABLE SpecialOfferProduct (
+  SpecialOfferID INT,
+  ProductID INT,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE,
+  CONSTRAINT PK_SpecialOfferProduct PRIMARY KEY (SpecialOfferID, ProductID)--setting (SpecialOfferID, ProductID) as PK's with CONSTRAINT
+)
+--SalesOrderHeader table creation
+create table SalesOrderHeader ( 
+	SalesOrderID int not null Primary Key,--setting SalesOrderID as PK
+	RevisionNumber tinyint not null,
+	OrderDate datetime not null,
+	DueDate datetime not null,
+	ShipDate datetime null,
+	Status tinyint not null,
+	OnlineOrderFlag nvarchar(6) null, 
+	SalesOrderNumber nvarchar(50) not null,
+	PurchaseOrderNumber nvarchar(50) null,
+	AccountNumber nvarchar(50) null,
+	CustomerID int not null, 
+	SalesPersonID int null, 
+	TerritoryID int null, 
+	BillToAddressID int not null, 
+	ShipToAddressID int not null, 
+	ShipMethodID int not null, 
+	CreditCardID int null, 
+	CreditCardApprovalCode nvarchar(15) null,
+	CurrencyRateID int null, 
+	SubTotal money not null,
+	TaxAmt money not null,
+	Freight money not null,
+	TotalDue money not null,
+	Comment nvarchar(60) null,
+	rowguid uniqueidentifier not null,
+	ModifiedDate datetime not null,
+	CONSTRAINT FK_CustomerID_SOH FOREIGN KEY (CustomerID)REFERENCES Customer(CustomerID),--setting CustomerID as FK with CONSTRAINT
+	CONSTRAINT FK_SalesPersonID_SOH FOREIGN KEY (SalesPersonID)REFERENCES SalesPerson(BusinessEntityID),--setting SalesPersonID as FK with CONSTRAINT
+	CONSTRAINT FK_TerritoryID_SOH FOREIGN KEY (TerritoryID)REFERENCES SalesTerritory(TerritoryID),--setting TerritoryID as FK with CONSTRAINT
+	CONSTRAINT FK_CredotCardID_SOH FOREIGN KEY (CreditCardID)REFERENCES CreditCard(CreditCardID),--setting CreditCardID as FK with CONSTRAINT
+	CONSTRAINT FK_CurrencyRateID_SOH FOREIGN KEY (CurrencyRateID)REFERENCES CurrencyRate(CurrencyRateID),--setting CurrencyRateID as FK with CONSTRAINT
+	CONSTRAINT FK_B2Address_SOH FOREIGN KEY (BillToAddressID)REFERENCES Address(AddressID),--setting BillToAddressID as FK with CONSTRAINT
+	CONSTRAINT FK_S2Address_SOH FOREIGN KEY (ShipToAddressID)REFERENCES Address(AddressID),--setting ShipToAddressID as FK with CONSTRAINT
+	CONSTRAINT FK_ShipMethodID_SOH FOREIGN KEY (ShipMethodID)REFERENCES ShipMethod(ShipMethodID)--setting ShipMethodID as FK with CONSTRAINT
+)
+--SalesOrderDetail table creation
+CREATE TABLE SalesOrderDetail (
+  SalesOrderID INT not null,
+  SalesOrderDetailID INT not null,
+  CarrierTrackingNumber NVARCHAR(25),
+  OrderQty SMALLINT not null,
+  ProductID INT not null,
+  SpecialOfferID INT not null,
+  UnitPrice MONEY not null,
+  UnitPriceDiscount MONEY not null,
+  LineTotal MONEY not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null,
+  CONSTRAINT PK_SalesOrderDetail PRIMARY KEY (SalesOrderID, SalesOrderDetailID),--setting (SalesOrderID, SalesOrderDetailID) as PK's with CONSTRAINT
+  CONSTRAINT FK_SalesOrderDetail FOREIGN KEY (SpecialOfferID,ProductID) REFERENCES SpecialOfferProduct(SpecialOfferID,ProductID),-- setting (SpecialOfferID,ProductID) as FK's with CONSTRAINT
+  CONSTRAINT FK_SalesOrderID FOREIGN KEY (SalesOrderID) REFERENCES SalesOrderHeader(SalesOrderID)-- setting SalesOrderID as FK
+)
+
+
+--PART 2--fill the tables with data using the "Import from Excel" operation or "Import from CSV" operation.
+
+
+--Address
+create table #TempAddress (	
+	AddressID int not null Primary Key, -- PK for Address
+	AddressLine1 nvarchar(60) not null,
+	AddressLine2 nvarchar(60) null,
+	City nvarchar(30) not null,
+	StateProvinceID int not null,
+	PostalCode nvarchar(15) not null,
+	rowguid uniqueidentifier not null,
+	ModifiedDate datetime not null
+)
+
+
+BULK INSERT #TempAddress FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\Address.csv' -- Take the information from this file path
+WITH (
+FIELDTERMINATOR = ';', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+
+INSERT INTO Address
+SELECT *
+FROM #TempAddress ;
+
+
+DROP TABLE #TempAddress;
+GO
+
+--CreditCard
+create table #TempCreditCard (	
+  CreditCardID INT,
+  CardType VARCHAR(50) not null,
+  CardNumber VARCHAR(25) not null,
+  ExpMonth TINYINT not null,
+  ExpYear SMALLINT not null,
+  ModifiedDate DATE not null
+)
+
+
+BULK INSERT #TempCreditCard FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\CreditCard.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO CreditCard
+SELECT *
+FROM #TempCreditCard ;
+
+
+DROP TABLE #TempCreditCard;
+GO
+
+--SalesTerritory
+create table #TempSalesTerritory (	
+  territoryID INT CONSTRAINT SalesTerritory_territoryID_pk PRIMARY KEY,--setting territoryID as PK
+  name VARCHAR(50) not null,
+  CountryRegionCode NVARCHAR(3) not null,
+  [group] NVARCHAR(50) not null,
+  SalesYTD money not null,
+  SalesLastYear money not null,
+  CostYTD money not null,
+  CostLastYear money not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null
+)
+
+
+BULK INSERT #TempSalesTerritory FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\SalesTerritory.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO SalesTerritory
+SELECT *
+FROM #TempSalesTerritory ;
+
+
+DROP TABLE #TempSalesTerritory;
+GO
+--Customer
+create table #TempCustomer (	
+ customerID INT,
+ personID INT,
+ storeID INT,
+ territoryID INT,
+ AccountNumber varchar(30),
+ rowguid uniqueidentifier not null,
+ ModifiedDate datetime not null
+)
+
+
+BULK INSERT #TempCustomer FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\Customer.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO customer
+SELECT *
+FROM #TempCustomer ;
+
+
+DROP TABLE #TempCustomer;
+GO
+
+--SalesPerson
+create table #TempSalesPerson (	
+   BusinessEntityID INT CONSTRAINT SalesPerson_BusinessEntityID_pk PRIMARY KEY,--setting BusinessEntityID as PK
+  TerritoryID INT,
+  SalesQuota MONEY,
+  Bonus MONEY not null,
+  CommissionPct smallmoney not null,
+  SalesYTD MONEY not null,
+  SalesLastYear MONEY not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null,
+)
+
+
+BULK INSERT #TempSalesPerson FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\SalesPerson.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO SalesPerson
+SELECT *
+FROM #TempSalesPerson ;
+
+
+DROP TABLE #TempSalesPerson;
+GO
+
+--ShipMethod
+create table #ShipMethod (	
+  ShipMethodID INT CONSTRAINT ShipMethod_ShipMethodID_pk PRIMARY KEY,--setting ShipMethodID as PK
+  Name NVARCHAR(50) not null,
+  ShipBase money not null,
+  ShipRate money not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null
+)
+
+
+BULK INSERT #ShipMethod FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\ShipMethod.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO ShipMethod
+SELECT *
+FROM #ShipMethod ;
+
+
+DROP TABLE #ShipMethod;
+GO
+
+--CurrencyRate
+
+create table #TempCurrencyRate (	
+   CurrencyRateID INT PRIMARY KEY,--setting CurrencyRateID as PK
+  CurrencyRateDate DATE,
+  FromCurrencyCode NCHAR(3),
+  ToCurrencyCode NCHAR(3),
+  AverageRate MONEY,
+  EndOfDayRate MONEY,
+  ModifiedDate DATE
+)
+
+
+BULK INSERT #TempCurrencyRate FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\CurremcyRate.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO CurrencyRate
+SELECT *
+FROM #TempCurrencyRate ;
+
+
+DROP TABLE #TempCurrencyRate;
+GO
+
+--SpecialOffer
+
+CREATE TABLE #TempSpecialOfferProduct (
+  SpecialOfferID INT,
+  ProductID INT,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE,
+  CONSTRAINT PK_SpecialOfferProduct PRIMARY KEY (SpecialOfferID, ProductID)--setting (SpecialOfferID, ProductID) as PK's with CONSTRAINT
+)
+
+BULK INSERT #TempSpecialOfferProduct FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\SpecialOfferProduct.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO SpecialOfferProduct
+SELECT *
+FROM #TempSpecialOfferProduct ;
+
+
+DROP TABLE #TempSpecialOfferProduct;
+GO
+
+--SpecialOrderHeader
+CREATE TABLE #TempSalesOrderHeader (
+ SalesOrderID int not null Primary Key,--setting SalesOrderID as PK
+	RevisionNumber tinyint not null,
+	OrderDate datetime not null,
+	DueDate datetime not null,
+	ShipDate datetime null,
+	Status tinyint not null,
+	OnlineOrderFlag nvarchar(6) null, 
+	SalesOrderNumber nvarchar(50) not null,
+	PurchaseOrderNumber nvarchar(50) null,
+	AccountNumber nvarchar(50) null,
+	CustomerID int not null, 
+	SalesPersonID int null, 
+	TerritoryID int null, 
+	BillToAddressID int not null, 
+	ShipToAddressID int not null, 
+	ShipMethodID int not null, 
+	CreditCardID int null, 
+	CreditCardApprovalCode nvarchar(15) null,
+	CurrencyRateID int null, 
+	SubTotal money not null,
+	TaxAmt money not null,
+	Freight money not null,
+	TotalDue money not null,
+	Comment nvarchar(60) null,
+	rowguid uniqueidentifier not null,
+	ModifiedDate datetime not null,
+)
+
+BULK INSERT #TempSalesOrderHeader FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\SalesOrderHeader.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO SalesOrderHeader
+SELECT *
+FROM #TempSalesOrderHeader ;
+
+
+DROP TABLE #TempSalesOrderHeader;
+GO
+
+
+--SalesOrderDetails
+
+CREATE TABLE #TempSalesOrderDetail (
+  SalesOrderID INT not null,
+  SalesOrderDetailID INT not null,
+  CarrierTrackingNumber NVARCHAR(25),
+  OrderQty SMALLINT not null,
+  ProductID INT not null,
+  SpecialOfferID INT not null,
+  UnitPrice MONEY not null,
+  UnitPriceDiscount MONEY not null,
+  LineTotal MONEY not null,
+  rowguid uniqueidentifier not null,
+  ModifiedDate DATE not null,
+)
+
+BULK INSERT #TempSalesOrderDetail FROM 'C:\Users\turhb\Desktop\SQL Project1 Files\SalesOrderDetail.csv'
+WITH (
+FIELDTERMINATOR = ',', ROWTERMINATOR = '\n', FIRSTROW = 2);
+
+INSERT INTO SalesOrderDetail
+SELECT *
+FROM #TempSalesOrderDetail ;
+
+
+DROP TABLE #TempSalesOrderDetail;
+GO
+
+
+ALTER TABLE SalesOrderHeader ALTER COLUMN OnlineOrderFlag bit not null;
+GO

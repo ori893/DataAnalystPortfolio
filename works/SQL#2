@@ -1,0 +1,112 @@
+--project 2
+--Ori Nahum
+--19/05/23
+use master
+use AdventureWorks2019
+
+--Q#1--Write a query that displays information about products that have not been purchased in the orders table
+go
+SELECT p.Productid, p.name, p.Color, p.ListPrice, p.Size
+FROM Production.Product p
+LEFT JOIN Sales.SalesOrderDetail sod ON p.Productid = sod.Productid
+WHERE sod.SalesOrderID IS NULL
+order by p.ProductID
+
+--Q#2--Write a query that displays information about customers who have not placed any orders.
+go
+SELECT sc.CustomerID, COALESCE(pp.lastName, 'unknown') as Last_Name, COALESCE(pp.FirstName, 'unknown') as First_Name
+FROM Sales.SalesOrderHeader soh
+right join Sales.Customer sc on sc.CustomerID = soh.CustomerID
+left join Person.Person pp on sc.CustomerID = pp.BusinessEntityID
+where soh.CustomerID is null
+order by sc.CustomerID
+
+--Q#3--Write a query that displays the details of the top 10 customers who have placed the highest number of orders. Display CustomerID, FirstName, LastName, and the number of orders they have placed, sorted in descending order.
+go
+select top 10 soh.CustomerID,pp.FirstName,pp.LastName ,count(soh.SalesOrderNumber) as total_orders
+from person.Person pp
+join Sales.SalesOrderHeader soh on pp.BusinessEntityID = soh.CustomerID
+GROUP BY soh.CustomerID,pp.FirstName,pp.LastName
+order by count(soh.SalesOrderNumber) desc
+
+--Q#4--Write a query that displays information about employees and their respective job titles (FirstName, LastName, JobTitle, HireDate), along with the count of employees who hold the same job title as the employee.
+go
+select pp.FirstName,  pp.LastName, e.JobTitle, e.HireDate, COUNT(*) OVER (PARTITION BY e.JobTitle)
+from HumanResources.Employee e
+join Person.Person pp on pp.BusinessEntityID = e.BusinessEntityID
+GROUP BY pp.FirstName,  pp.LastName, e.JobTitle, e.HireDate
+order by e.JobTitle
+
+--Q#5--Write a query that displays, for each customer, the date of their most recent order and the date of the order before the most recent one.
+go
+SELECT s.SalesOrderID, s.CustomerID, p.FirstName, p.LastName, s.OrderDate, t.PreviousOrder
+FROM (
+    SELECT SalesOrderID, CustomerID, OrderDate,
+        ROW_NUMBER() OVER (PARTITION BY CustomerID ORDER BY OrderDate DESC, SalesOrderID DESC) AS Orn,
+        LEAD(OrderDate, 1) OVER (PARTITION BY CustomerID ORDER BY OrderDate DESC) AS PreviousOrder
+    FROM sales.salesorderheader
+) AS t
+JOIN sales.salesorderheader s ON t.SalesOrderID = s.SalesOrderID
+JOIN sales.customer c ON t.CustomerID = c.CustomerID
+JOIN person.person p ON c.PersonID = p.BusinessEntityID
+WHERE t.Orn = 1
+ORDER BY t.CustomerID
+
+--Q#6--Write a query that displays the total purchase amount of the most expensive order in each year and indicates which customers these orders belong to.
+SELECT [year], SalesOrderID, pp.LastName, pp.FirstName, FORMAT(Total, 'c', 'en-US') AS Total
+FROM (
+    SELECT *,
+        RANK() OVER (PARTITION BY [year] ORDER BY Total DESC) AS Rnk
+    FROM (
+        SELECT DISTINCT od.SalesOrderID, oh.CustomerID, YEAR(oh.OrderDate) AS [year],
+            SUM(od.LineTotal) OVER (PARTITION BY YEAR(oh.OrderDate), od.SalesOrderID) AS Total
+        FROM sales.salesorderdetail od
+        JOIN sales.salesorderheader oh ON od.SalesOrderID = oh.SalesOrderID
+    ) AS s
+) AS ct
+LEFT JOIN sales.Customer sc ON ct.CustomerID = sc.CustomerID
+LEFT JOIN person.person pp ON pp.BusinessEntityID = sc.PersonID
+WHERE Rnk = 1
+ORDER BY [year]
+
+--Q#7--Display the number of orders made in each month of the year using a matrix.
+select * from(select datepart(yy,orderdate) as year, datepart(mm,orderdate) as Month, SalesOrderID
+from sales.salesorderheader) Sct
+PIVOT (count(salesorderid) FOR Year in ([2011],[2012],[2013],[2014])) as pvt
+order by month
+
+--Q#8--Write a query that displays the total amount of orders for each month of the year, as well as the cumulative total for each year. The query should include a row highlighting the yearly total.
+SELECT YEAR(OrderDate) AS Year, 
+       CASE WHEN GROUPING(MONTH(OrderDate)) = 1 THEN 'grand_total' ELSE CAST(MONTH(OrderDate) AS VARCHAR(20)) END AS Month,
+       SUM(SubTotal) AS Sum_Price,
+       SUM(SUM(SubTotal)) OVER (PARTITION BY YEAR(OrderDate) ORDER BY MONTH(OrderDate)) AS Money
+FROM Sales.SalesOrderHeader
+GROUP BY ROLLUP(YEAR(OrderDate), MONTH(OrderDate))
+ORDER BY Year, MONTH(OrderDate)
+
+--Q#9--Write a query that displays employees in each department sorted by their date of employment, from the most recently hired employee to the most senior employee.
+with Cte1 as
+( select he.BusinessEntityID as EmployeeID, pp.firstname+' '+pp.lastname as 'F_Name',
+  he.HireDate,datediff(mm,he.HireDate,getdate())  as Seniority
+  from [Person].[Person] pp join [HumanResources].[Employee] he on he.BusinessEntityID=pp.BusinessEntityID),
+Cte2 as
+( select hd.name as DepartmentName, heh.businessentityid
+  from [HumanResources].[EmployeeDepartmentHistory] heh join [HumanResources].[Department] hd
+  on hd.DepartmentID=heh.DepartmentID
+  where heh.enddate is null)
+ 
+ select DepartmentName,EmployeeID, F_Name, HireDate, Seniority, 
+ Lead(F_Name,1)over(partition by DepartmentName order by HireDate desc) as PreviousEmpName,
+ Lead(HireDate,1)over(partition by DepartmentName order by HireDate desc) as PreviousEmpHDate,
+ datediff(dd,Lead(HireDate,1)over(partition by DepartmentName order by HireDate desc),HireDate) as DiffDays
+ from Cte2 join Cte1 on cte1.EmployeeID=Cte2.BusinessEntityID
+
+ --Q#10--Write a query that displays the details of employees who work in the same department and were hired on the same date.
+ SELECT he.HireDate, heh.DepartmentID, 
+       STRING_AGG(CONCAT(he.BusinessEntityID, ' ', pp.LastName, ' ', pp.FirstName), ', ') AS Employees_Info
+FROM [HumanResources].[Employee] he
+JOIN [HumanResources].[EmployeeDepartmentHistory] heh ON heh.BusinessEntityID = he.BusinessEntityID
+JOIN [Person].[Person] pp ON pp.BusinessEntityID = he.BusinessEntityID
+WHERE heh.EndDate IS NULL
+GROUP BY he.HireDate, heh.DepartmentID
+ORDER BY he.HireDate;
